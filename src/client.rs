@@ -22,63 +22,54 @@ Last 64 bytes: SHA-256 hash of the message
 
 */
 
-pub fn run_client(addr: String) -> Result<()> {
+pub fn run_client(remote_addr: &String) -> Result<()> {
     info!("Running as client... Starting TX & RX threads");
+    let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56701);
+    let udp = UdpSocket::bind(addr)?;
+    udp.set_nonblocking(true)?;
 
-    let tx_addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56701);
-    let tx_udp = utils::bind_addr(tx_addr, true)?;
-    info!("TX bound to {}", tx_addr);
+    let mut idx = 0;
+    let mut buffer = [0; 1024];
+    let mut next_send = utils::get_timestamp();
+    const INTERVAL: u128 = 5000;
 
-    let rx_addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56702);
-    let rx_udp = utils::bind_addr(rx_addr, true)?;
-    let rx_port = rx_udp.local_addr().unwrap().port();
-    info!("RX bound to {}", rx_addr);
-
-    let target_addr = addr.parse::<SocketAddr>().expect("Failed to parse address");
-    let tx = thread::spawn(move || send(tx_udp, target_addr, rx_port));
-    let rx = thread::spawn(move || receive(rx_udp));
-
-    tx.join().expect("Failed to join TX thread")?;
-    rx.join().expect("Failed to join RX thread")?;
-
-    Ok(())
-}
-
-fn send(socket: UdpSocket, target_addr: SocketAddr, rx_port: u16) -> Result<()> {
-    let mut idx: u64 = 0;
-
-    info!("TX ready... Transmitting from {:?}", socket);
     loop {
-        let msg = Message::build(rx_port, idx, utils::get_timestamp());
-        let serialized = msg.to_bytes();
-        socket.send_to(&serialized, target_addr)?;
-        trace!("Sent message {:?}", msg);
+        if utils::get_timestamp() >= next_send {
+            let msg = Message::build(idx, utils::get_timestamp());
+            let serialized = msg.to_bytes();
+            udp.send_to(&serialized, remote_addr)?;
+            trace!("Sent message {:?}", msg);
 
-        idx += 1;
-        thread::sleep(Duration::from_millis(10));
-    }
-}
+            next_send += INTERVAL;
+            idx += 1;
+        }
 
-fn receive(socket: UdpSocket) -> Result<()> {
-    let mut buf = [0; 1024];
+        let res = udp.recv_from(&mut buffer);
+        match &res {
+            Ok(_) => {}
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::WouldBlock {
+                    error!("Failed to receive data: {}", e);
+                }
+                continue;
+            }
+        }
 
-    info!("RX ready... Listening on {:?}", socket);
-    loop {
-        let (amt, src) = socket.recv_from(&mut buf).expect("Failed to receive data");
-        trace!("Received {} bytes from {}", amt, src);
-
-        let Some(opt) = Message::from_bytes(buf[..amt].to_vec()) else {
+        let (amt, _) = res.unwrap();
+        let Some(msg) = Message::from_bytes(buffer[..amt].to_vec()) else {
             error!("Failed to deserialize message");
             continue;
         };
 
-        if !opt.check_hash() {
-            error!("Hash check failed for presumed idx: {}", opt.idx);
+        if !msg.check_hash() {
+            error!("Hash check failed for presumed idx: {}", msg.idx);
+            continue;
         }
 
         info!(
-            "Received message with delta: {}",
-            utils::get_timestamp() - opt.timestamp
-        );
+            "Received idx #{} with delta {}ms",
+            msg.idx,
+            utils::get_timestamp() - msg.timestamp
+        )
     }
 }

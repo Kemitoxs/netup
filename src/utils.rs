@@ -41,16 +41,14 @@ pub fn get_timestamp() -> u128 {
 
 #[derive(Serialize, Deserialize, Debug, Hash)]
 pub struct Message {
-    pub rx_port: u16,
     pub idx: u64,
     pub timestamp: u128,
     pub hash: u128,
 }
 
 impl Message {
-    pub fn build(rx_port: u16, idx: u64, timestamp: u128) -> Self {
+    pub fn build(idx: u64, timestamp: u128) -> Self {
         let mut msg = Message {
-            rx_port,
             idx,
             timestamp,
             hash: 0,
@@ -69,7 +67,7 @@ impl Message {
 
     fn calc_hash(&self) -> u128 {
         let mut hasher = Sha256::new();
-        let data = format!("{}{}{}", self.rx_port, self.idx, self.timestamp);
+        let data = format!("{}{}", self.idx, self.timestamp);
         let bytes = data.as_bytes();
 
         hasher.update(bytes);
