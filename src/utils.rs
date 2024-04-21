@@ -1,34 +1,6 @@
-use std::{
-    io::ErrorKind,
-    net::{SocketAddr, UdpSocket},
-};
-
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tracing::{debug, info};
-
-pub fn bind_addr(mut addr: SocketAddr, iterate: bool) -> std::io::Result<UdpSocket> {
-    loop {
-        let res = UdpSocket::bind(addr);
-        match res {
-            Ok(socket) => {
-                return Ok(socket);
-            }
-
-            Err(e) => match e.kind() {
-                ErrorKind::AddrInUse => {
-                    if !iterate {
-                        return Err(e);
-                    }
-                    debug!("Address {} already in use... Incrementing port", addr);
-                    addr.set_port(addr.port() + 1);
-                }
-                _ => return Err(e),
-            },
-        }
-    }
-}
 
 pub fn get_timestamp() -> u128 {
     use std::time::{SystemTime, UNIX_EPOCH};

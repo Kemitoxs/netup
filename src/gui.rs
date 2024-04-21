@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::mpsc};
 
-use egui::{Color32, Context, Ui, Vec2b};
-use egui_plot::{Line, Plot, PlotPoint, PlotPoints, Points};
+use egui::{Color32, Context, Ui};
+use egui_plot::{Plot, PlotPoints, Points};
 
 use crate::utils;
 
@@ -33,6 +33,7 @@ impl MessageReceivedEvent {
 }
 
 struct MessageState {
+    #[allow(dead_code)]
     idx: u64,
     snt_time: u128,
     rcv_time: Option<u128>,
