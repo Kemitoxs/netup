@@ -1,6 +1,9 @@
 use std::{collections::HashMap, sync::mpsc};
 
-use egui::Context;
+use egui::{Color32, Context, Ui, Vec2b};
+use egui_plot::{Line, Plot, PlotPoint, PlotPoints, Points};
+
+use crate::utils;
 
 pub enum NetupEvent {
     MessageSent(MessageSentEvent),
@@ -71,7 +74,7 @@ struct NetupApp {
 pub fn run_gui(channel: mpsc::Receiver<NetupEvent>) {
     let app = NetupApp {
         messages: MessageMap::default(),
-        channel: channel,
+        channel,
     };
     let options = eframe::NativeOptions::default();
     _ = eframe::run_native("Netup", options, Box::new(|_| Box::<NetupApp>::new(app)));
@@ -81,13 +84,9 @@ impl eframe::App for NetupApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         self.collect_events();
         egui::CentralPanel::default().show(ctx, |ui| {
-            for msg in self.messages.iter() {
-                ui.label(format!(
-                    "Message {} sent at {} received at {:?}",
-                    msg.idx, msg.snt_time, msg.rcv_time
-                ));
-            }
+            self.draw_ui(ui);
         });
+        ctx.request_repaint();
     }
 }
 
@@ -103,5 +102,34 @@ impl NetupApp {
                 }
             }
         }
+    }
+
+    fn draw_ui(&mut self, ui: &mut Ui) {
+        let current_time = utils::get_timestamp();
+        let points: PlotPoints = self
+            .messages
+            .iter()
+            .filter(|m| m.rcv_time.is_some())
+            .filter(|m| {
+                return (current_time - m.snt_time) < 60000 * 5;
+            })
+            .map(|msg| {
+                [
+                    msg.snt_time as f64,
+                    (msg.rcv_time.unwrap() - msg.snt_time) as f64,
+                ]
+            })
+            .collect();
+        let plot_points = Points::new(points).color(Color32::RED);
+
+        Plot::new("delay_plot")
+            .show_grid(true)
+            .x_axis_label("Time")
+            .y_axis_label("Delay in ms")
+            .x_axis_formatter(|a, _, _| utils::format_timestamp_ms(a.value as u128))
+            .show_grid(false)
+            .show(ui, |plot_ui| {
+                plot_ui.add(plot_points);
+            });
     }
 }

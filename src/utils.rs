@@ -3,6 +3,7 @@ use std::{
     net::{SocketAddr, UdpSocket},
 };
 
+use chrono::{DateTime, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{debug, info};
@@ -37,6 +38,14 @@ pub fn get_timestamp() -> u128 {
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
     since_the_epoch.as_millis()
+}
+
+pub fn format_timestamp_ms(epoch_ms: u128) -> String {
+    // Convert the u128 milliseconds since the Unix epoch to a DateTime<Utc>
+    let timestamp = Utc.timestamp_millis_opt(epoch_ms as i64).unwrap();
+
+    // Format the DateTime object as "DD/MM/YY HH:MM:SS.mmm"
+    timestamp.format("%d/%m/%y %H:%M:%S%.3f").to_string()
 }
 
 #[derive(Serialize, Deserialize, Debug, Hash)]

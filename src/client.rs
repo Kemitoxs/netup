@@ -9,7 +9,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 
 use crate::{
     gui::{self, MessageSentEvent},
@@ -39,7 +39,7 @@ pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Res
     let mut idx = 0;
     let mut buffer = [0; 1024];
     let mut next_send = utils::get_timestamp();
-    const INTERVAL: u128 = 10;
+    const INTERVAL: u128 = 20;
 
     loop {
         if utils::get_timestamp() >= next_send {
@@ -78,14 +78,14 @@ pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Res
             continue;
         }
 
+        let now = utils::get_timestamp();
         _ = channel.send(NetupEvent::MessageReceived(MessageReceivedEvent::new(
-            msg.idx,
-            msg.timestamp,
+            msg.idx, now,
         )));
-        info!(
+        debug!(
             "Received idx #{} with delta {}ms",
             msg.idx,
-            utils::get_timestamp() - msg.timestamp
-        )
+            now - msg.timestamp
+        );
     }
 }
