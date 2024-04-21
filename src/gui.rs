@@ -1,8 +1,8 @@
-use std::{borrow::BorrowMut, collections::HashMap, sync::mpsc};
+use std::{collections::HashMap, sync::mpsc};
 
-use egui::{Color32, Context, Ui, Vec2b};
+use egui::{Color32, Context, Ui};
 use egui_plot::{Plot, PlotPoints, Points};
-use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::utils;
 
@@ -69,10 +69,6 @@ impl MessageMap {
             .values()
             .filter(move |m| (current_time - m.snt_time) < window)
     }
-
-    pub fn iter(&self) -> impl Iterator<Item = &MessageState> {
-        self.msgs.values()
-    }
 }
 
 struct NetupApp {
@@ -104,6 +100,7 @@ impl eframe::App for NetupApp {
 const MAX_DELAY: u128 = 500;
 
 /// The amount of time between two packets before a period of silence is detected
+#[allow(dead_code)]
 const MAX_SILENCE: u128 = 50;
 
 /// How far back the graphs should go
