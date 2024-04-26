@@ -24,7 +24,7 @@ Last 64 bytes: SHA-256 hash of the message
 
 pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Result<()> {
     info!("Running as client... Starting TX & RX threads");
-    let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56701);
+    let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56741);
     let udp = UdpSocket::bind(addr)?;
     udp.set_nonblocking(true)?;
 
