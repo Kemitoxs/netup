@@ -1,31 +1,53 @@
 use std::{
-    io::Result,
+    io::{self, Error, ErrorKind, Result},
     net::{IpAddr, SocketAddr, UdpSocket},
     sync::mpsc,
 };
 
 use tracing::{debug, error, info, trace};
 
-use crate::{gui::MessageSentEvent, utils};
+use crate::{gui::MessageSentEvent, utils, ClientArgs};
 use crate::{
     gui::{MessageReceivedEvent, NetupEvent},
     utils::Message,
 };
 
-/*
-The message format
+fn get_socket() -> Option<UdpSocket> {
+    // Incrementally try to bind to a port starting from 10000
+    info!("Incrementally trying to bind to a port between 10000 and 65535");
+    for port in 10000..65535 {
+        let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), port);
+        match UdpSocket::bind(addr) {
+            Ok(udp) => {
+                info!("Bound to {}", addr);
+                return Some(udp);
+            }
+            Err(e) => match e.kind() {
+                ErrorKind::AddrInUse => {
+                    trace!("Port {} is in use", port);
+                    continue;
+                }
+                _ => {
+                    error!("Failed to bind to port {}: {}", port, e);
+                    info!("Incremental port binding is only available when `ErrorKind::AddrInUse` is returned... Terminating application");
+                    return None;
+                }
+            },
+        }
+    }
 
-First 2 bytes: Port of the receiver
-Next 8 bytes: Index of the message
-Next 16 bytes: Timestamp of the message
-Last 64 bytes: SHA-256 hash of the message
+    error!("All ports between 10000 and 65535 are in use... Terminating application");
+    None
+}
 
-*/
-
-pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Result<()> {
-    info!("Running as client... Starting TX & RX threads");
-    let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56741);
-    let udp = UdpSocket::bind(addr)?;
+pub fn run_client(args: &ClientArgs, channel: mpsc::Sender<NetupEvent>) -> Result<()> {
+    info!("Running as client");
+    let Some(udp) = get_socket() else {
+        return Err(Error::new(
+            io::ErrorKind::AddrInUse,
+            "Failed to bind to any port",
+        ));
+    };
     udp.set_nonblocking(true)?;
 
     let mut idx = 0;
@@ -38,7 +60,7 @@ pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Res
             let timestamp = utils::get_timestamp();
             let msg = Message::build(idx, timestamp);
             let serialized = msg.to_bytes();
-            udp.send_to(&serialized, &remote_addr)?;
+            udp.send_to(&serialized, &args.remote_addr)?;
             _ = channel.send(NetupEvent::MessageSent(MessageSentEvent::new(
                 idx, timestamp,
             )));
@@ -74,6 +96,7 @@ pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Res
         _ = channel.send(NetupEvent::MessageReceived(MessageReceivedEvent::new(
             msg.idx, now,
         )));
+
         debug!(
             "Received idx #{} with delta {}ms",
             msg.idx,
