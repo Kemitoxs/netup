@@ -5,6 +5,7 @@ use tracing::{info, trace, Level};
 
 mod client;
 mod gui;
+mod messages;
 mod server;
 mod utils;
 
