@@ -2,9 +2,11 @@ use std::{io::Result, net::UdpSocket};
 
 use tracing::{info, trace};
 
-pub fn run_server(addr: &String) -> Result<()> {
-    info!("Running as server... Binding to {}", addr);
-    let udp = UdpSocket::bind(addr)?;
+use crate::ServerArgs;
+
+pub fn run_server(args: &ServerArgs) -> Result<()> {
+    info!("Running as server... Binding to {}", args.addr);
+    let udp = UdpSocket::bind(args.addr)?;
     let mut buf = [0; 1024];
 
     info!("Server is ready... Listening for incoming packets");
