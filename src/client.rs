@@ -9,7 +9,7 @@ use tracing::{debug, error, info, trace};
 use crate::{gui::MessageSentEvent, utils, ClientArgs};
 use crate::{
     gui::{MessageReceivedEvent, NetupEvent},
-    utils::Message,
+    utils::RawMessage,
 };
 
 fn get_socket() -> Option<UdpSocket> {
@@ -58,7 +58,7 @@ pub fn run_client(args: &ClientArgs, channel: mpsc::Sender<NetupEvent>) -> Resul
     loop {
         if utils::get_timestamp() >= next_send {
             let timestamp = utils::get_timestamp();
-            let msg = Message::build(idx, timestamp);
+            let msg = RawMessage::build(idx, timestamp);
             let serialized = msg.to_bytes();
             udp.send_to(&serialized, &args.remote_addr)?;
             _ = channel.send(NetupEvent::MessageSent(MessageSentEvent::new(
@@ -82,7 +82,7 @@ pub fn run_client(args: &ClientArgs, channel: mpsc::Sender<NetupEvent>) -> Resul
         }
 
         let (amt, _) = res.unwrap();
-        let Some(msg) = Message::from_bytes(buffer[..amt].to_vec()) else {
+        let Some(msg) = RawMessage::from_bytes(buffer[..amt].to_vec()) else {
             error!("Failed to deserialize message");
             continue;
         };

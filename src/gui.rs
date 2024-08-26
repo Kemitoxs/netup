@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::mpsc};
 use egui::{Color32, Context, Ui};
 use egui_plot::{Plot, PlotPoints, Points};
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use serde::{Deserialize, Serialize};
 
 use crate::utils;
 
@@ -33,23 +34,34 @@ impl MessageReceivedEvent {
     }
 }
 
-struct MessageState {
+#[derive(Serialize, Deserialize)]
+pub struct TrackedMessage {
     #[allow(dead_code)]
-    idx: u64,
-    snt_time: u128,
-    rcv_time: Option<u128>,
+    pub idx: u64,
+    pub snt_time: u128,
+    pub rcv_time: Option<u128>,
+}
+
+impl TrackedMessage {
+    pub fn new(idx: u64, snt_time: u128) -> Self {
+        Self {
+            idx,
+            snt_time,
+            rcv_time: None,
+        }
+    }
 }
 
 #[derive(Default)]
 struct MessageMap {
-    msgs: HashMap<u64, MessageState>,
+    msgs: HashMap<u64, TrackedMessage>,
 }
 
 impl MessageMap {
     pub fn add_sent(&mut self, idx: u64, snt_time: u128) {
         self.msgs.insert(
             idx,
-            MessageState {
+            TrackedMessage {
                 idx,
                 snt_time,
                 rcv_time: None,
@@ -63,7 +75,7 @@ impl MessageMap {
         }
     }
 
-    pub fn last_x_ms(&self, window: u128) -> impl Iterator<Item = &MessageState> {
+    pub fn last_x_ms(&self, window: u128) -> impl Iterator<Item = &TrackedMessage> {
         let current_time = utils::get_timestamp();
         self.msgs
             .values()
@@ -74,12 +86,16 @@ impl MessageMap {
 struct NetupApp {
     messages: MessageMap,
     channel: mpsc::Receiver<NetupEvent>,
+    start_time: Option<u128>,
+    range: u64,
 }
 
 pub fn run_gui(channel: mpsc::Receiver<NetupEvent>) {
     let app = NetupApp {
         messages: MessageMap::default(),
         channel,
+        start_time: None,
+        range: 60 * 5 * 1000,
     };
     let options = eframe::NativeOptions::default();
     _ = eframe::run_native("Netup", options, Box::new(|_| Box::<NetupApp>::new(app)));
@@ -125,6 +141,10 @@ impl NetupApp {
 
     fn draw_ui(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.label("Range:");
+                ui.add(egui::Slider::new(&mut self.range, 0..=60000 * 10).text("ms"));
+            });
             self.draw_delay_plot(ui);
         });
     }
@@ -163,7 +183,7 @@ impl NetupApp {
 
         let points: PlotPoints = self
             .messages
-            .last_x_ms(LOOKBACK_PERIOD)
+            .last_x_ms(self.range as u128)
             .filter(|m| m.rcv_time.is_some())
             .map(|m| {
                 let x = m.snt_time;
