@@ -1,6 +1,8 @@
+use core::time;
 use std::{
     io::Result,
     net::{IpAddr, SocketAddr, UdpSocket},
+    sync::mpsc,
     thread,
     time::Duration,
 };
@@ -9,8 +11,14 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tracing::{error, info, trace};
 
-use crate::utils;
-use crate::utils::Message;
+use crate::{
+    gui::{self, MessageSentEvent},
+    utils,
+};
+use crate::{
+    gui::{MessageReceivedEvent, NetupEvent},
+    utils::Message,
+};
 
 /*
 The message format
@@ -22,7 +30,7 @@ Last 64 bytes: SHA-256 hash of the message
 
 */
 
-pub fn run_client(remote_addr: &String) -> Result<()> {
+pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Result<()> {
     info!("Running as client... Starting TX & RX threads");
     let addr = SocketAddr::new(IpAddr::from([0, 0, 0, 0]), 56701);
     let udp = UdpSocket::bind(addr)?;
@@ -31,13 +39,17 @@ pub fn run_client(remote_addr: &String) -> Result<()> {
     let mut idx = 0;
     let mut buffer = [0; 1024];
     let mut next_send = utils::get_timestamp();
-    const INTERVAL: u128 = 5000;
+    const INTERVAL: u128 = 10;
 
     loop {
         if utils::get_timestamp() >= next_send {
-            let msg = Message::build(idx, utils::get_timestamp());
+            let timestamp = utils::get_timestamp();
+            let msg = Message::build(idx, timestamp);
             let serialized = msg.to_bytes();
-            udp.send_to(&serialized, remote_addr)?;
+            udp.send_to(&serialized, &remote_addr)?;
+            _ = channel.send(NetupEvent::MessageSent(MessageSentEvent::new(
+                idx, timestamp,
+            )));
             trace!("Sent message {:?}", msg);
 
             next_send += INTERVAL;
@@ -66,6 +78,10 @@ pub fn run_client(remote_addr: &String) -> Result<()> {
             continue;
         }
 
+        _ = channel.send(NetupEvent::MessageReceived(MessageReceivedEvent::new(
+            msg.idx,
+            msg.timestamp,
+        )));
         info!(
             "Received idx #{} with delta {}ms",
             msg.idx,
