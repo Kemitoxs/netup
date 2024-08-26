@@ -1,20 +1,12 @@
-use core::time;
 use std::{
     io::Result,
     net::{IpAddr, SocketAddr, UdpSocket},
     sync::mpsc,
-    thread,
-    time::Duration,
 };
 
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use tracing::{debug, error, info, trace};
 
-use crate::{
-    gui::{self, MessageSentEvent},
-    utils,
-};
+use crate::{gui::MessageSentEvent, utils};
 use crate::{
     gui::{MessageReceivedEvent, NetupEvent},
     utils::Message,
