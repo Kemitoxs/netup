@@ -11,7 +11,7 @@ fn parse_args() -> Command {
         .subcommand(
             Command::new("server")
                 .about("Run as the server")
-                .arg(arg!(<ADDR> "The address to bind to")),
+                .arg(arg!(<ADDR> "The address to receive on")),
         )
         .subcommand(
             Command::new("client")
@@ -30,11 +30,11 @@ fn main() {
     match cmd.subcommand() {
         Some(("server", args)) => {
             let addr = args.get_one::<String>("ADDR").unwrap();
-            server::run_server(addr.to_string()).unwrap();
+            server::run_server(addr).unwrap();
         }
         Some(("client", args)) => {
             let addr = args.get_one::<String>("ADDR").unwrap();
-            client::run_client(addr.to_string()).unwrap();
+            client::run_client(addr).unwrap();
         }
         _ => {}
     }
