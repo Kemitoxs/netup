@@ -31,7 +31,7 @@ pub fn run_client(remote_addr: String, channel: mpsc::Sender<NetupEvent>) -> Res
     let mut idx = 0;
     let mut buffer = [0; 1024];
     let mut next_send = utils::get_timestamp();
-    const INTERVAL: u128 = 20;
+    const INTERVAL: u128 = 10;
 
     loop {
         if utils::get_timestamp() >= next_send {
