@@ -8,6 +8,22 @@ mod gui;
 mod server;
 mod utils;
 
+/*
+TODO:
+ - Use clap_derivce instead of manual stuff
+ - Always ensure you can run without GUI
+ - Load / Save from file with CSV
+ - GUI:
+   - Add two modes:
+
+Arguments:
+ - server <ADDR>
+ - client <REMOTE_ADDR>
+  - "--no-gui": run without GUI
+  - "--file": set with file to use
+  - "--port": from which port to send (if null incrementelly try from 10000)
+*/
+
 fn parse_args() -> Command {
     clap::Command::new("netup")
         .subcommand_required(true)
